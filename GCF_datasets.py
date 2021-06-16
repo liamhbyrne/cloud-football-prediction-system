@@ -44,9 +44,9 @@ def fetchLinks(url: str):
 
 def runner(pages):
     with ThreadPoolExecutor(max_workers=15) as executer:
-        futures = [executer.submit(fetchLinks, url) for url in pages]
+        futures = [executer.submit(fetchLinks, url) for url in pages]  #  A Thread for each page
         received_data = []
-        for future in as_completed(futures):
+        for future in as_completed(futures):  # Async-Await until threads done
             received_data += future.result()
 
     return received_data
@@ -102,6 +102,7 @@ def main(request):
     # TIMER DONE
     end = time.time()
     logging.info(end - start, "seconds")
-    return end - start
+    return str(end - start)  # GCP requires return type to be string
 
-main("")
+
+main("")  # call to main for local testing as GCP calls main(request)
