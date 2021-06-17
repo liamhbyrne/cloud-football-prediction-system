@@ -14,9 +14,18 @@ except psycopg2.OperationalError as e:
 
 with conn:
     cursor = conn.cursor()
-    statement = '''SELECT season, league, results_location FROM dataset;'''
-    cursor.execute(statement)
+    select_statement = '''SELECT season, league, results_location FROM league;'''
+    cursor.execute(select_statement)
+
     leagues = cursor.fetchall()
+    template = ','.join(['%s'] * len(leagues))
+    insert_statement = '''INSERT INTO club (league_id, season, club_name)
+                            VALUES {}
+                            RETURNING club.club_id'''.format(template)
+    cursor.execute(insert_statement, leagues)
+    print(cursor.fetchall)
+
+
 
 print(leagues)
 

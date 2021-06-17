@@ -32,7 +32,7 @@ def fetchLinks(url: str):
 
         if season_search:
             league = season_search.group(2)
-            season = season_search.group(1)
+            season = int(season_search.group(1))
         else:
             logging.debug("Season and League not found with RegEx")
             continue
@@ -44,9 +44,9 @@ def fetchLinks(url: str):
 
 def runner(pages):
     with ThreadPoolExecutor(max_workers=15) as executer:
-        futures = [executer.submit(fetchLinks, url) for url in pages]  #  A Thread for each page
+        futures = [executer.submit(fetchLinks, url) for url in pages]
         received_data = []
-        for future in as_completed(futures):  # Async-Await until threads done
+        for future in as_completed(futures):
             received_data += future.result()
 
     return received_data
@@ -67,7 +67,7 @@ def writeToDB(datasets: List):
         cursor = conn.cursor()
 
         template = ','.join(['%s'] * len(datasets))
-        statement = '''INSERT INTO dataset (league, season, league_name, results_location)
+        statement = '''INSERT INTO league (league, season, league_name, results_location)
                         VALUES {} ON CONFLICT (league, season) 
                         DO UPDATE SET results_location = EXCLUDED.results_location'''.format(template)
         cursor.execute(statement, datasets)
@@ -102,7 +102,6 @@ def main(request):
     # TIMER DONE
     end = time.time()
     logging.info(end - start, "seconds")
-    return str(end - start)  # GCP requires return type to be string
+    return str(end - start)
 
-
-main("")  # call to main for local testing as GCP calls main(request)
+main("")
