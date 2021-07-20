@@ -32,7 +32,7 @@ def fetchLinks(url: str):
 
         if season_search:
             league = season_search.group(2)
-            season = int(season_search.group(1))
+            season = season_search.group(1)
         else:
             logging.debug("Season and League not found with RegEx")
             continue
@@ -53,6 +53,7 @@ def runner(pages):
 
 
 def writeToDB(datasets: List):
+    print(datasets)
     address: str = os.environ.get('DB_ADDRESS')
     conn = None
     try:
