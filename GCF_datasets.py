@@ -10,29 +10,33 @@ import os
 
 
 def fetchLinks(url: str):
+    '''
+    Requests webpage from football-data.co.uk and scrapes the link to the dataset for each league/season
+    '''
     page = requests.get(url)
+
     if page.status_code != 200:
         logging.error("Failed to request page " + url)
         return False
 
     soup = BeautifulSoup(page.content, 'lxml')
-    links = soup.find_all("a", href=re.compile(".+.csv\Z"))
+    links = soup.find_all("a", href=re.compile(".+.csv\Z"))  # Find all <a> tags with a href of a CSV file
 
-    if not links:
+    if not links:  # If none are found
         logging.debug("No csv links found on " + url)
         return False
 
     received = []
 
     for link in links:
-        name = link.get_text()
-        href = link['href']
+        name = link.get_text()  # name of league
+        href = link['href']  # the link itself
 
-        season_search = re.search(r"/(\d\d\d\d)/([A-Z]\d).csv", href)
+        season_search = re.search(r"/(\d\d\d\d)/([A-Z]\d).csv", href)  # RegEx match
 
         if season_search:
-            league = season_search.group(2)
-            season = season_search.group(1)
+            league = season_search.group(2)  # second group matches the code of the league e.g. E1
+            season = season_search.group(1)  # first group refers to the season e.g. 1920 for 2019-2020
         else:
             logging.debug("Season and League not found with RegEx")
             continue
@@ -43,6 +47,9 @@ def fetchLinks(url: str):
 
 
 def runner(pages):
+    '''
+    Enables the webscraping to be performed in parallel to give a significant speed boost
+    '''
     with ThreadPoolExecutor(max_workers=15) as executer:
         futures = [executer.submit(fetchLinks, url) for url in pages]
         received_data = []
@@ -53,8 +60,10 @@ def runner(pages):
 
 
 def writeToDB(datasets: List):
-    print(datasets)
-    address: str = os.environ.get('DB_ADDRESS')
+    '''
+    Obtains a connection to the database and inserts to the league table
+    '''
+    address: str = os.environ.get('DB_ADDRESS')  # DB Address is stored in environment
     conn = None
     try:
         conn = psycopg2.connect(address)
@@ -67,7 +76,7 @@ def writeToDB(datasets: List):
         logging.debug(conn)
         cursor = conn.cursor()
 
-        template = ','.join(['%s'] * len(datasets))
+        template = ','.join(['%s'] * len(datasets))  # Creates placeholders for query based on quantity of values
         statement = '''INSERT INTO league (league, season, league_name, results_location)
                         VALUES {} ON CONFLICT (league, season) 
                         DO UPDATE SET results_location = EXCLUDED.results_location'''.format(template)
@@ -105,4 +114,6 @@ def main(request):
     logging.info(end - start, "seconds")
     return str(end - start)
 
+
+# Call to main, GCP does this implicitly
 main("")
