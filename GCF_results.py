@@ -12,7 +12,10 @@ logging.basicConfig(level = logging.INFO)
 
 
 class MatchTableBuilder:
-
+    '''
+    This class handles the process of extracting data from various CSVs and writing them into the database.
+    Currently, this is used for writing to an empty database, not upserting.
+    '''
     def __init__(self, address):
         self._conn = self.connectToDB(address)
 
@@ -71,6 +74,7 @@ class MatchTableBuilder:
         else:  # Add a 15:00 timestamp if time is not provided
             df['Date_Time'] = pd.to_datetime(df['Date'] + ' ' + '15:00', errors = 'coerce')
 
+        df = df[df.Date_Time.notnull()]
         df['Date_Time'] = df['Date_Time'].astype(str)
 
         # Rename columns
@@ -132,8 +136,8 @@ class MatchTableBuilder:
         filteredData = filteredData.replace(to_replace='', value=None)
         filteredData = filteredData.where(pd.notnull(filteredData), None)
 
-        filteredData = filteredData[filteredData.HomeTeam is not None]
-        filteredData = filteredData[filteredData.home_goals is not None]
+        filteredData = filteredData[filteredData.HomeTeam != None]
+        filteredData = filteredData[filteredData.home_goals != None]
 
         # Convert to list of tuples compatible with psycopg2
         tuple_rows = filteredData.to_records(index=False).tolist()
@@ -146,7 +150,7 @@ class MatchTableBuilder:
         '''
         Uses multithreading to speed up the CSV parsing
         '''
-        with ThreadPoolExecutor(max_workers=10) as executer:
+        with ThreadPoolExecutor(max_workers=5) as executer:
             futures = [executer.submit(self.parseCSV, url, league_id) for league_id, url in collected_leagues]
 
             # Ensures the program does not continue until all have completed
@@ -199,7 +203,7 @@ def main(request):
     # TIMER DONE
     end = time.time()
     logging.info(str(end - start) + "seconds")
-    return end
+    return str(end - start)
 
 
 # Call to main, GCP does this implicitly
