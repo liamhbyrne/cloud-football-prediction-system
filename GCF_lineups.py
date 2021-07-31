@@ -8,6 +8,9 @@ from typing import Dict, Tuple
 import psycopg2
 import requests
 
+# Enables Info logging to be displayed on console
+logging.basicConfig(level = logging.INFO)
+
 
 class LineupScraper:
     '''
