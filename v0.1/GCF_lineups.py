@@ -3,14 +3,22 @@ import os
 import re
 import time
 import random
-from typing import Dict, Tuple
+from concurrent.futures._base import as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
+from datetime import datetime
+from difflib import SequenceMatcher
+from typing import Dict
 
 import psycopg2
 import requests
+from bs4 import BeautifulSoup
 
 # Enables Info logging to be displayed on console
 logging.basicConfig(level = logging.INFO)
 
+'''
+ABANDONED: m.football-lineups.com has weirdly high anti-scraping mechanisms
+'''
 
 class LineupScraper:
     '''
@@ -78,6 +86,100 @@ class LineupScraper:
 
         return response
 
+    def toSoup(self, response):
+        return BeautifulSoup(response.text, "lxml")
+
+    def fixtureLinkScraper(self, season_page_link):
+        league, season, link = season_page_link
+
+        club_ids = self.fetchClubIds(league, season)
+
+        response = self.requestPage(link)
+        soup = self.toSoup(response)
+
+        fixtures = []
+
+        table_tags = soup.find('table', {'class': 'table table-responsive table-condensed table-hover table-striped'}).find('tbody')
+        for match in table_tags.find_all('tr'):
+            current_match = {}
+            if match.find('td', {'class': 'td_resul'}):
+
+                # The following data will aid with matching the game in the database
+                scoreline = match.find('td', {'class': 'td_resul'}).get_text()
+                score_matcher = re.search("(\d|-):(\d|-)", scoreline)
+                if not score_matcher:
+                    continue
+                if score_matcher.group(1) == "-" or score_matcher.group(2) == "-":
+                    continue
+                current_match['home_goals'] = score_matcher.group(1)
+                current_match['away_goals'] = score_matcher.group(2)
+
+                date_time = match.find('td', {'class': 'mobile-hiddenTD'}).get_text()
+                date = re.search("\d\d-[A-Z][a-z][a-z]-\d\d", date_time).group(0)
+                current_match['game_date'] = datetime.strptime(date, '%d-%b-%y').strftime("%Y-%m-%d")
+
+                home_club_name = match.find('td', {'align': 'right'}).get_text()
+                current_match['home_id'] = self.findMostSimilarClubName(home_club_name, club_ids)
+
+                away_club_name = match.find('td', {'align': 'left'}).get_text()
+                current_match['away_id'] = self.findMostSimilarClubName(away_club_name, club_ids)
+
+                # Link to fixture page
+                fixture_link = "https://m.football-lineups.com" + match.find('td', {'class': 'td_resul'}).a.get("href")
+                self.scrapeLineup(fixture_link)
+
+
+
+    def scrapeLineup(self, link):
+        print(link)
+        response = self.requestPage(link)
+        soup = self.toSoup(response)
+
+        tables = soup.find_all('table', {'class': 'table table-responsive table-condensed table-hover'})
+        home_box = tables[0].find('tbody')
+        away_box = tables[1].find('tbody')
+
+        home_lineup = [row.get_text() for row in home_box.find_all('tr')]
+        away_lineup = [row.get_text() for row in away_box.find_all('tr')]
+        print(home_lineup)
+
+
+    def findMostSimilarClubName(self, club_name, club_ids):
+        if club_name in club_ids:
+            return club_ids[club_name]
+        else:
+            closest = ("", 0.0)
+            for key in club_ids:
+                similarity = SequenceMatcher(None, key, club_name).ratio()
+                if closest[1] < similarity:
+                    closest = (key, similarity)
+
+            return club_ids[closest[0]]
+
+    def fetchClubIds(self, league_code, season):
+        cursor = self._conn.cursor()
+        select_statement = '''SELECT club_name, club_id 
+                              FROM club 
+                              JOIN league ON league.league_id=club.league_id 
+                              WHERE league.league='{}' AND league.season='{}';'''.format(league_code, season)
+        cursor.execute(select_statement)
+
+        return dict(cursor.fetchall())
+
+
+    def runner(self, links):
+        '''
+        Uses multithreading to speed up the scraping of multiple pages
+        '''
+        with ThreadPoolExecutor(max_workers=5) as executer:
+            futures = [executer.submit(self.fixtureLinkScraper, link) for link in links]
+
+            dataset = []
+            # Ensures the program does not continue until all have completed
+            for future in as_completed(futures):
+                dataset += future.result()
+
+
 
 def main(request):
     # TIMER START
@@ -101,7 +203,9 @@ def main(request):
 
     links = scraper.seasonLinkFetcher(leagues)
     print(links)
-    scraper.insertLinksToDB(links)
+    #scraper.insertLinksToDB(links)
+
+    scraper.runner(links)
 
     # TIMER DONE
     end = time.time()

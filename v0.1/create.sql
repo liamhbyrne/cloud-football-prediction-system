@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS league (
 	league_id SERIAL,
         league VARCHAR(3),
-        season INTEGER,
+        season VARCHAR(4),
         league_name VARCHAR(50),
         players_location VARCHAR(100),
         results_location VARCHAR(100),
@@ -13,18 +13,22 @@ CREATE TABLE IF NOT EXISTS league (
 CREATE TABLE IF NOT EXISTS club (
 		club_id SERIAL,
 		league_id INTEGER,
-		season INTEGER,
 		club_name VARCHAR(50),
 		PRIMARY KEY (club_id),
 		FOREIGN KEY (league_id) REFERENCES league(league_id)
 );
 
 CREATE TABLE IF NOT EXISTS player (
-		name VARCHAR(50),
 		player_id SERIAL,
+		name VARCHAR(50),
 		club_id INTEGER REFERENCES club(club_id),
-		rating INTEGER,
+		overall_rating INTEGER,
+        potential_rating INTEGER,
 		position VARCHAR(3),
+        age INTEGER,
+        value REAL,
+        country VARCHAR(50),
+        total_rating INTEGER,
 		PRIMARY KEY (player_id)
 );
 
@@ -57,24 +61,19 @@ CREATE TABLE IF NOT EXISTS match (
 		a9_player_id INTEGER REFERENCES player(player_id),
 		a10_player_id INTEGER REFERENCES player(player_id),
 		a11_player_id INTEGER REFERENCES player(player_id),
-		B365H REAL,
-		B365D REAL,
-		B365A REAL,
-		BWH REAL,
-		BWD REAL,
-		BWA REAL,
-		IWH REAL,
-		IWD REAL,
-		IWA REAL,
-		PSH REAL,
-		PSD REAL,
-		PSA REAL,
-		WHH REAL,
-		WHD REAL,
-		WHA REAL,
-		VCH REAL,
-		VCD REAL,
-		VCA REAL,
+		home_goals INTEGER,
+        away_goals INTEGER,
+        home_max REAL,
+        draw_max REAL,
+        away_max REAL,
+        broker_home_max VARCHAR(30),
+        broker_draw_max VARCHAR(30),
+        broker_away_max VARCHAR(30),
+        market_home_max REAL,
+        market_draw_max REAL,
+        market_away_max REAL,
+        max_over_2_5 REAL,
+        max_under_2_5 REAL,
 		PRIMARY KEY (match_id)
 );
 

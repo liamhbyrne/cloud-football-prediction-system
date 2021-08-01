@@ -12,17 +12,18 @@ import requests
 from bs4 import BeautifulSoup
 
 # Enables Info logging to be displayed on console
-logging.basicConfig(level = logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 
 class PlayerScraper:
     '''
     This class handles the process of scraping players from sofifa and adding them to the database.
     '''
+
     def __init__(self, address):
         self._conn = self.connectToDB(address)
 
-    def connectToDB(self, address : str):
+    def connectToDB(self, address: str):
         '''
         Obtain and return a connection object
         '''
@@ -56,7 +57,7 @@ class PlayerScraper:
         cursor.execute(insert_statement, links)
         self._conn.commit()
 
-    def requestPage(self, url : str):
+    def requestPage(self, url: str):
         user_agent_list = [
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0',
@@ -86,7 +87,8 @@ class PlayerScraper:
         Uses multithreading to speed up the CSV parsing
         '''
         with ThreadPoolExecutor(max_workers=5) as executer:
-            futures = [executer.submit(self.preprocess, league_code, season, link) for league_code, season, link in links]
+            futures = [executer.submit(self.preprocess, league_code, season, link) for league_code, season, link in
+                       links]
 
             dataset = []
             # Ensures the program does not continue until all have completed
@@ -94,7 +96,6 @@ class PlayerScraper:
                 dataset += future.result()
 
         self.insertPlayers(dataset)
-
 
     def preprocess(self, league_code, season, link):
         club_ids = self.fetchClubIds(league_code, season)
@@ -112,7 +113,6 @@ class PlayerScraper:
             response = self.requestPage(next_link)
 
         return players
-
 
     def parseHTML(self, soup, club_ids):
         table_tags = soup.find('table', {'class': 'table table-hover persist-area'}).find('tbody')
@@ -137,7 +137,7 @@ class PlayerScraper:
                                 similarity = SequenceMatcher(None, key, club_name).ratio()
                                 if closest[1] < similarity:
                                     closest = (key, similarity)
-                                    
+
                             current_player['club_id'] = club_ids[closest[0]]
 
                 elif attribute['class'] == ['col', 'col-oa', 'col-sort']:
@@ -158,7 +158,6 @@ class PlayerScraper:
             players.append((current_player['name'], current_player['club_id'], current_player['overall_rating'],
                             current_player['potential_rating'], current_player['position'], current_player['age'],
                             current_player['value'], current_player['country'], current_player['total_rating']))
-
 
         return players
 
@@ -181,6 +180,7 @@ class PlayerScraper:
 
         cursor.execute(insert_statement, players)
         self._conn.commit()
+
 
 def main(request):
     # TIMER START
@@ -214,7 +214,6 @@ def main(request):
         'SC0': 50
     }
     links = scraper.linkGenerator(edition_numbers, league_numbers)
-    #scraper.insertLinksToDB(links)
 
     scraper.runner(links)
 
@@ -222,7 +221,6 @@ def main(request):
     end = time.time()
     logging.info(str(end - start) + " seconds")
     return str(end - start)
-
 
 # Call to main, GCP does this implicitly
 main("")
