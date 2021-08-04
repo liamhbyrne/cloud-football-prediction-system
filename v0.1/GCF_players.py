@@ -45,6 +45,7 @@ class PlayerScraper:
         return generated_links
 
     def insertLinksToDB(self, links):
+        print(links)
         cursor = self._conn.cursor()
         template = ','.join(['%s'] * len(links))
         insert_statement = '''
@@ -214,8 +215,8 @@ def main(request):
         'SC0': 50
     }
     links = scraper.linkGenerator(edition_numbers, league_numbers)
-
-    scraper.runner(links)
+    scraper.insertLinksToDB(links)
+    #scraper.runner(links)
 
     # TIMER DONE
     end = time.time()
