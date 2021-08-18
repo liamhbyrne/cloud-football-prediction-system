@@ -10,6 +10,10 @@ import psycopg2
 import requests
 from bs4 import BeautifulSoup
 
+from flask import request, Flask
+
+app = Flask(__name__)
+
 # Enables Info logging to be displayed on console
 logging.basicConfig(level=logging.INFO)
 
@@ -200,37 +204,29 @@ class PlayerScraper:
         self._conn.commit()
 
 
-def main(request):
+@app.route('/')
+def handler():
+
+    request_json = request.get_json()
+    # GET
+    if request.args and 'edition' in request.args and 'league' in request.args:
+        edition_numbers_json = request.args.get('edition')
+        league_numbers_json = request.args.get('league')
+    # POST
+    elif request_json and 'edition' in request_json and 'league' in request_json:
+        edition_numbers_json = request_json['edition']
+        league_numbers_json = request_json['league']
+    else:
+        return "No or bad parameters were passed", 400
+
     # TIMER START
     start = time.time()
     address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
+    print(address)
     scraper = PlayerScraper(address)
 
-    edition_numbers = {
-        '1112': 120002,
-        '1213': 130034,
-        '1314': 140052,
-        '1415': 150059,
-        '1516': 160058,
-        '1617': 170099,
-        '1718': 180084,
-        '1819': 190075,
-        '1920': 200061,
-        '2021': 210055
-    }
-
-    league_numbers = {
-        'B1': 4,
-        'E0': 13,
-        'E1': 14,
-        'F1': 16,
-        'D1': 19,
-        'I1': 31,
-        'N1': 10,
-        'P1': 308,
-        'SP1': 53,
-        'SC0': 50
-    }
+    edition_numbers = {x["season"]: x["code"] for x in edition_numbers_json}
+    league_numbers = {x["short_league"]: x["code"] for x in league_numbers_json}
 
     links = scraper.linkGenerator(edition_numbers, league_numbers)
     scraper.insertLinksToDB(links)
@@ -240,6 +236,3 @@ def main(request):
     end = time.time()
     logging.info(str(end - start) + " seconds")
     return str(end - start)
-
-# Call to main, GCP does this implicitly
-main("")

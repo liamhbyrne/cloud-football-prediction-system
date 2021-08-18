@@ -4,3 +4,4 @@ connection.py
 .idea
 out.csv
 chromedriver.exe
+/v0.2/__pycache__/

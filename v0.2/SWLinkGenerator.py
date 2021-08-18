@@ -87,9 +87,9 @@ class SWLinkGenerator:
     def insertLinkIntoDB(self, links):
         cursor = self._conn.cursor()
         template = ','.join(['%s'] * len(links))
-        insert_statement = '''INSERT INTO league (league, season, lineups_location)
+        insert_statement = '''INSERT INTO league (league, season, match_location)
                             VALUES {}
-                            ON CONFLICT (season, league) DO UPDATE SET odds_location=EXCLUDED.odds_location;'''.format(template)
+                            ON CONFLICT (season, league) DO UPDATE SET match_location=EXCLUDED.match_location;'''.format(template)
 
         cursor.execute(insert_statement, links)
         self._conn.commit()
@@ -117,7 +117,7 @@ def main(request):
                }
 
     links = scraper.seasonLinkFetcher(leagues)
-    #scraper.insertLinkIntoDB(links)
+    scraper.insertLinkIntoDB(links)
     print(links)
 
     # TIMER DONE

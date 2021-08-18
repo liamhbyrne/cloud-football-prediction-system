@@ -10,7 +10,6 @@ def setUpDatabase(request):
     conn = None
     try:
         conn = psycopg2.connect(address)
-        print(conn)
     except psycopg2.OperationalError:
         logging.error("Failed to connect to DB")
         exit(1)
