@@ -93,38 +93,3 @@ class SWLinkGenerator:
         cursor.execute(insert_statement, links)
         self._conn.commit()
 
-
-def main(request):
-    # TIMER START
-    start = time.time()
-    address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
-
-    scraper = SWLinkGenerator(address)
-
-    leagues = {'B1': 'https://uk.soccerway.com/national/belgium/pro-league/2011-2012/',
-               'E0': 'https://uk.soccerway.com/national/england/premier-league/2011-2012/',
-               'E1': 'https://uk.soccerway.com/national/england/championship/2011-2012/',
-               'E2': 'https://uk.soccerway.com/national/england/league-one/2011-2012/',
-               'F1': 'https://uk.soccerway.com/national/france/ligue-1/2011-2012/',
-               'D1': 'https://uk.soccerway.com/national/germany/bundesliga/2011-2012/',
-               'I1': 'https://uk.soccerway.com/national/italy/serie-a/2011-2012/',
-               'N1': 'https://uk.soccerway.com/national/netherlands/eredivisie/2011-2012/',
-               'P1': 'https://uk.soccerway.com/national/portugal/portuguese-liga-/2011-2012/',
-               'SP1': 'https://uk.soccerway.com/national/spain/primera-division/2011-2012/',
-               'SC0': 'https://uk.soccerway.com/national/scotland/premier-league/2011-2012/',
-               'T1' : 'https://uk.soccerway.com/national/turkey/super-lig/2011-2012/'
-               }
-
-    links = scraper.seasonLinkFetcher(leagues)
-    scraper.insertLinkIntoDB(links)
-    print(links)
-
-    # TIMER DONE
-    end = time.time()
-    logging.info(str(end - start) + "seconds")
-    return str(end - start)
-
-
-# Call to main, GCP does this implicitly
-main("")
-

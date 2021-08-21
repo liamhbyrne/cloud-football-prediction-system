@@ -24,6 +24,7 @@ class SWFixtureLinkScraper:
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("log-level=3")
         chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
         browser = webdriver.Chrome(options=chrome_options, executable_path="../chromedriver.exe")
@@ -61,19 +62,3 @@ class SWFixtureLinkScraper:
         return self._browser.find_element_by_xpath(
             r'//*[@id="page_competition_1_block_competition_matches_summary_11"]/div[3]/table/tbody')
 
-
-def main(request):
-    # TIMER START
-    start = time.time()
-
-    scraper = SWFixtureLinkScraper('https://uk.soccerway.com/national/germany/bundesliga/20202021/', 'D1', '20202021')
-    print(scraper.traverse())
-
-    # TIMER DONE
-    end = time.time()
-    logging.info(str(end - start) + "seconds")
-    return str(end - start)
-
-
-# Call to main, GCP does this implicitly
-main("")
