@@ -1,15 +1,18 @@
+import asyncio
+import json
 import logging
 import os
 import time
 from concurrent.futures._base import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 
+import requests
 from flask import request, Flask
 
 from .createTablesFlask import setUpDatabase
 from .playersFlask import PlayerScraper
 from .SWLinkGenFlask import SWLinkGenerator
-from .SWFixtureLinkFlask import SWFixtureLinkScraper
+from .triggerCloudRun import runner
 
 app = Flask(__name__)
 
@@ -76,18 +79,11 @@ def matchTableBuilder():
     links = scraper.seasonLinkFetcher(leagues)
     scraper.insertLinkIntoDB(links)
 
-    print(len(links))
-    fixture_scrapers = [SWFixtureLinkScraper(link, league, season) for league, season, link in links]
+    print(links)
 
-    fixtures = []
-    with ThreadPoolExecutor(max_workers=1) as executer:
-        futures = [executer.submit(scraper.traverse) for scraper in fixture_scrapers]
+    fixture_links = asyncio.run(runner(links[:1]))
 
-        for future in as_completed(futures):
-            print(future.result())
-            fixtures.append(future.result())
 
-    print(fixtures)
 
     # TIMER DONE
     end = time.time()

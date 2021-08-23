@@ -35,13 +35,17 @@ class SWFixtureLinkScraper:
 
         browser = webdriver.Chrome(options=chrome_options)
         browser.get(self._link)
+        '''
         WebDriverWait(browser, 10).until(expected_conditions.presence_of_element_located((
             By.XPATH, r'//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]'
         )))
+        '''
         browser.maximize_window()
+        '''
         gdpr_button = browser.find_element_by_xpath(
             r'//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]')  # the button is located by xPath
         browser.execute_script("arguments[0].click();", gdpr_button)  # executes JavaScript to click button
+        '''
         return browser
 
     def traverse(self):
@@ -50,7 +54,7 @@ class SWFixtureLinkScraper:
         self._browser = self.getBrowser()
         table_list = self._browser.find_element_by_id("page_competition_1_block_competition_matches_summary_11_page_dropdown")
         for option in table_list.find_elements_by_tag_name('option'):
-            time.sleep(1)
+            time.sleep(1.5)
             result_table = self.findResultsTable()
             soup = BeautifulSoup(result_table.get_attribute('innerHTML'), 'lxml')
 
@@ -69,7 +73,7 @@ class SWFixtureLinkScraper:
         return self._browser.find_element_by_xpath(
             r'//*[@id="page_competition_1_block_competition_matches_summary_11"]/div[3]/table/tbody')
 
-@app.route("/")
+@app.route("/", methods=["POST", "GET"])
 def hello_world():
     # league, link, season as inputs
     request_json = request.get_json()
