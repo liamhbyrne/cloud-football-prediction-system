@@ -3,15 +3,13 @@ import json
 import logging
 import os
 import time
-from concurrent.futures._base import as_completed
-from concurrent.futures.thread import ThreadPoolExecutor
 
-import requests
 from flask import request, Flask
 
-from .createTablesFlask import setUpDatabase
-from .playersFlask import PlayerScraper
 from .SWLinkGenFlask import SWLinkGenerator
+from .createTablesFlask import setUpDatabase
+from .lineupFlask import SWLineupScraper
+from .playersFlask import PlayerScraper
 from .triggerCloudRun import runner
 
 app = Flask(__name__)
@@ -58,6 +56,7 @@ def playerTableBuilder():
 
 @app.route("/results")
 def matchTableBuilder():
+    logging.info("request received on /results")
     # TIMER START
     start = time.time()
 
@@ -79,11 +78,18 @@ def matchTableBuilder():
     links = scraper.seasonLinkFetcher(leagues)
     scraper.insertLinkIntoDB(links)
 
-    print(links)
 
-    fixture_links = asyncio.run(runner(links[:1]))
+    fixture_links = asyncio.run(runner(links))
 
+    print(fixture_links)
 
+    for league_season in fixture_links:
+        parsed_json = json.loads(league_season)
+        league = parsed_json["league"]
+        season = parsed_json["season"]
+        links  = parsed_json["links"]
+        lineup_scraper = SWLineupScraper(address, league, season)
+        lineup_scraper.runner(links)
 
     # TIMER DONE
     end = time.time()
@@ -91,4 +97,3 @@ def matchTableBuilder():
 
 
     return "matches inserted", 200
-

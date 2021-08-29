@@ -48,10 +48,9 @@ class PlayerScraper:
         cursor = self._conn.cursor()
         template = ','.join(['%s'] * len(links))
         insert_statement = '''
-                    UPDATE league 
-                    SET players_location=payload.link
-                    FROM (VALUES {}) AS payload (league_code, season_code, link)
-                    WHERE league=payload.league_code AND season=payload.season_code;
+                    INSERT INTO league (league, season, players_location)
+                    VALUES {} ON CONFLICT (league, season) DO
+                    UPDATE SET players_location=EXCLUDED.players_location;
                            '''.format(template)
 
         cursor.execute(insert_statement, links)
@@ -98,7 +97,7 @@ class PlayerScraper:
         self.insertPlayers(dataset)
 
     def preprocess(self, league_code, season, link):
-        print(link)
+
         club_ids = self.fetchClubIds(league_code, season)
         league_id = self.selectLeagueID(league_code, season)
 
@@ -180,6 +179,7 @@ class PlayerScraper:
         return dict(cursor.fetchall())
 
     def insertClub(self, club_name, league_id):
+        print(league_id)
         cursor = self._conn.cursor()
         insert_statement = '''INSERT INTO club (league_id, club_name)
                                         VALUES (%s, %s)

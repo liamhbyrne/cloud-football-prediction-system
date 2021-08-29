@@ -1,14 +1,11 @@
 import logging
-import os
-import re
-import time
 import random
+import re
 from concurrent.futures._base import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 
 import psycopg2
 import requests
-
 
 # Enables Info logging to be displayed on console
 logging.basicConfig(level = logging.INFO)
@@ -34,7 +31,7 @@ class SWLinkGenerator:
 
     def seasonLinkFetcher(self, urls):
         season_links = []
-        years = ["2011-2012"] + ["{}{}".format(i, i+1) for i in range(2012, 2022)]
+        years = ["2011-2012"] + ["{}{}".format(i, i+1) for i in range(2012, 2021)]
         for league_code, link in urls.items():
             season_search = re.search("\d\d\d\d-?\d\d\d\d", link).group(0)
             for year in years[years.index(season_search):]:
@@ -92,4 +89,3 @@ class SWLinkGenerator:
 
         cursor.execute(insert_statement, links)
         self._conn.commit()
-

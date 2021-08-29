@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS match (
 		home_id INTEGER REFERENCES club(club_id),
 		away_id INTEGER REFERENCES club(club_id),
 		game_date DATE,
+		status VARCHAR(20),
+		link VARCHAR(200),
 		h1_player_id INTEGER REFERENCES player(player_id),
 		h2_player_id INTEGER REFERENCES player(player_id),
 		h3_player_id INTEGER REFERENCES player(player_id),
