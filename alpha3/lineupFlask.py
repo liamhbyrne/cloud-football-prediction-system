@@ -1,9 +1,7 @@
 import logging
 import random
 import re
-import time
 from concurrent.futures._base import as_completed
-
 from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime
 from difflib import SequenceMatcher
@@ -95,6 +93,8 @@ class SWLineupScraper:
         match_info = {}
 
         match_details = soup.find('div', {'class' : 'match-info'})
+        if not match_details:
+            return 200
 
         # DATE
         date = match_details.find('div', {'class': 'details'}).a.get_text()
