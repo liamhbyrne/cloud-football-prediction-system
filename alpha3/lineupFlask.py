@@ -1,22 +1,17 @@
 import logging
-import random
-import re
 from concurrent.futures._base import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
-from datetime import datetime
 from difflib import SequenceMatcher
 
 import psycopg2
-import requests
-from bs4 import BeautifulSoup
 
 logging.basicConfig(level = logging.INFO)
 
 
-class SWLineupScraper:
-    '''
+class MatchTableBuilder:
+    """
     This class handles the process of scraping lineups from websites and adding them to the database.
-    '''
+    """
     def __init__(self, address, league, season):
         self._season = season
         self._league = league
@@ -35,157 +30,62 @@ class SWLineupScraper:
             logging.error("Failed to connect to DB, likely poor internet connection or bad DB address")
             exit(1)
 
-    def requestPage(self, url: str):
-        '''
-        HTTP GET each fixture page with an alternating user agent.
-        '''
-        user_agent_list = [
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:77.0) Gecko/20100101 Firefox/77.0',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
-        ]
-        next_user_agent = random.choice(user_agent_list)
-
-        response = None
-        try:
-            header = {'user-agent': next_user_agent}
-            response = requests.get(url, headers=header)  # Get page
-        except requests.exceptions.ConnectionError as e:
-            logging.error("ConnectionError: Likely too many simultaneous connections")
-
-        if response.status_code != 200:
-            raise Exception("RESPONSE {} ON >>> {}".format(response.status_code, url))
-
-        return response
-
-    def toSoup(self, response):
-        return BeautifulSoup(response.text, "lxml")
-
-    def runner(self, links):
+    def runner(self, match_info_list):
         '''
         Makes appropriate function calls
         '''
 
         counter = 1
-        '''
-        for link in links:
-            status = self.extractLineups(link)
-            print("{} / {} complete".format(counter, len(links)))
-            if status != 200:
-                raise Exception("ERROR: Lineup extraction failed on: {}".format(link))
-            counter += 1
-        '''
-        with ThreadPoolExecutor(max_workers=6) as executer:
-            futures = [executer.submit(self.extractLineups, link) for link in links]
+
+        with ThreadPoolExecutor(max_workers=5) as executer:
+            futures = [executer.submit(self.extractLineups, link) for link in match_info_list]
 
             # Ensures the program does not continue until all have completed
             for future in as_completed(futures):
                 status = future.result()
-                print("{} / {} complete".format(counter, len(links)))
+                print("{} / {} complete".format(counter, len(match_info_list)))
                 if status != 200:
                     raise Exception("ERROR: Lineup extraction failed on: {}".format(status))
                 counter += 1
 
-    def extractLineups(self, link):
-        soup = self.toSoup(self.requestPage(link))
-        match_info = {}
 
-        match_details = soup.find('div', {'class' : 'match-info'})
-        if not match_details:
-            return 200
+    def extractLineups(self, match_info):
 
-        # DATE
-        date = match_details.find('div', {'class': 'details'}).a.get_text()
-        match_info['game_date'] = datetime.strptime(date, '%d/%m/%Y').strftime("%Y-%m-%d")
-
-        # TEAMS
-        home_team = match_details.find('div', {'class' : 'container left'})\
-                                 .find('a', {'class' : 'team-title'}).get_text()
-
-        away_team = match_details.find('div', {'class': 'container right'}) \
-                                 .find('a', {'class': 'team-title'}).get_text()
-
-        if home_team in self._club_ids:
-            match_info["home_id"] = self._club_ids[home_team]
+        if match_info["home_team"] in self._club_ids:
+            home_id = self._club_ids[match_info["home_team"]]
         else:
-            match_info["home_id"] = self.searchSimilar(self._club_ids, home_team)
+            home_id = self.searchSimilar(self._club_ids, match_info["home_team"])
 
-        if away_team in self._club_ids:
-            match_info["away_id"] = self._club_ids[away_team]
+        if match_info["away_team"] in self._club_ids:
+            away_id = self._club_ids[match_info["away_team"]]
         else:
-            match_info["away_id"] = self.searchSimilar(self._club_ids, away_team)
+            away_id = self.searchSimilar(self._club_ids, match_info["away_team"])
 
-        # Check if game has not happened yet
-        status_box = match_details.find("div", {'class' : 'container middle'}).span
-        if status_box:
-            if match_details.find("div", {'class' : 'container middle'}).span.get_text() == "KO":
-                match_info["status"] = "UPCOMING"
+        # HOME
+        home_squad_ids = dict(self._player_ids[home_id])
+        home_lineup_ids = []
 
-        if match_details.find("h3", {'class' : 'thick scoretime'}):
-            game_state = match_details.find("h3", {'class' : 'thick scoretime'}).span.get_text()
+        for h_name in match_info["home_lineup"]:
+            if h_name in home_squad_ids:
+                home_lineup_ids.append(home_squad_ids[h_name])
+            else:
+                home_lineup_ids.append(self.searchSimilar(home_squad_ids, h_name))
 
-            # if game is finished or in progress
-            if "status" not in match_info:
-                if game_state in ["FT", "AET"]:
-                    match_info["status"] = "FT"
-                else:
-                    match_info["status"] = "STARTED"
+        # AWAY
+        away_squad_ids = dict(self._player_ids[away_id])
+        away_lineup_ids = []
 
-                # SCORELINE
-                scoreline = re.search(r'(\d) - (\d)', match_details.find("h3", {'class': 'thick scoretime'}).get_text())
-                if scoreline:
-                    match_info['home_goals'] = scoreline.group(1)
-                    match_info['away_goals'] = scoreline.group(2)
-                else:
-                    logging.error("RegEx did not find scoreline.")
+        for a_name in match_info["away_lineup"]:
+            if a_name in away_squad_ids:
+                away_lineup_ids.append(away_squad_ids[a_name])
+            else:
+                away_lineup_ids.append(self.searchSimilar(away_squad_ids, a_name))
 
-            else:  # No scoreline given to upcoming games
-                match_info['home_goals'] = None
-                match_info['away_goals'] = None
-
-        else:
-            # If the match does not have a scoreline, it may of been cancelled or erroneous (continue)
-            return 200
-
-        # LINEUPS
-        lineups_containers = soup.find('div', {'class' : 'combined-lineups-container'})
-
-        if lineups_containers:
-            home_lineup_box = lineups_containers.find('div', {'class' : 'container left'}).table.tbody
-            away_lineup_box = lineups_containers.find('div', {'class' : 'container right'}).table.tbody
-
-            # HOME
-            home_squad_ids = dict(self._player_ids[match_info["home_id"]])
-            match_info["home_lineup"] = []
-
-            for player in home_lineup_box.find_all('tr')[:11]:
-                h_name = player.find('td', {'class' : 'player large-link'}).a.get_text()
-                if h_name in home_squad_ids:
-                    match_info["home_lineup"].append(home_squad_ids[h_name])
-                else:
-                    match_info["home_lineup"].append(self.searchSimilar(home_squad_ids, h_name))
-
-            # AWAY
-            away_squad_ids = dict(self._player_ids[match_info["away_id"]])
-            match_info["away_lineup"] = []
-
-            for player in away_lineup_box.find_all('tr')[:11]:
-                a_name = player.find('td', {'class': 'player large-link'}).a.get_text()
-                if a_name in away_squad_ids:
-                    match_info["away_lineup"].append(away_squad_ids[a_name])
-                else:
-                    match_info["away_lineup"].append(self.searchSimilar(away_squad_ids, a_name))
-
-        else:  #  If the lineups are not available
-            match_info["home_lineup"] = [None for _ in range(11)]
-            match_info["away_lineup"] = [None for _ in range(11)]
 
         try:  # Make calls to INSERT to database
-            self.insertMatch(match_info["home_id"], match_info["away_id"], match_info["game_date"],
-                             match_info["status"], link, match_info["home_lineup"],
-                             match_info["away_lineup"], match_info["home_goals"], match_info["away_goals"])
+            self.insertMatch(home_id, away_id, match_info["game_date"],
+                             match_info["status"], match_info["link"], home_lineup_ids,
+                             away_lineup_ids, match_info["home_goals"], match_info["away_goals"])
         except Exception as e:
             print(e)
         return 200

@@ -4,3 +4,4 @@ selenium==3.141.0
 chromedriver-binary==92.0.4515.43.0
 bs4
 lxml
+requests
