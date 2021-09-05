@@ -43,7 +43,7 @@ class MatchTableBuilder:
             # Ensures the program does not continue until all have completed
             for future in as_completed(futures):
                 status = future.result()
-                print("{} / {} complete".format(counter, len(match_info_list)))
+                logging.info("{} / {} complete".format(counter, len(match_info_list)))
                 if status != 200:
                     raise Exception("ERROR: Lineup extraction failed on: {}".format(status))
                 counter += 1
@@ -66,7 +66,9 @@ class MatchTableBuilder:
         home_lineup_ids = []
 
         for h_name in match_info["home_lineup"]:
-            if h_name in home_squad_ids:
+            if h_name is None:  # If lineup not available
+                home_lineup_ids.append(None)
+            elif h_name in home_squad_ids:
                 home_lineup_ids.append(home_squad_ids[h_name])
             else:
                 home_lineup_ids.append(self.searchSimilar(home_squad_ids, h_name))
@@ -76,7 +78,9 @@ class MatchTableBuilder:
         away_lineup_ids = []
 
         for a_name in match_info["away_lineup"]:
-            if a_name in away_squad_ids:
+            if a_name is None:  # If lineup not available
+                away_lineup_ids.append(None)
+            elif a_name in away_squad_ids:
                 away_lineup_ids.append(away_squad_ids[a_name])
             else:
                 away_lineup_ids.append(self.searchSimilar(away_squad_ids, a_name))
@@ -87,7 +91,7 @@ class MatchTableBuilder:
                              match_info["status"], match_info["link"], home_lineup_ids,
                              away_lineup_ids, match_info["home_goals"], match_info["away_goals"])
         except Exception as e:
-            print(e)
+            logging.error(e)
         return 200
 
     def searchSimilar(self, name_ids_dict, name):
@@ -140,15 +144,19 @@ class MatchTableBuilder:
                              h11_player_id, a1_player_id, a2_player_id, a3_player_id,
 				             a4_player_id, a5_player_id, a6_player_id, a7_player_id, a8_player_id,
 				             a9_player_id, a10_player_id, a11_player_id, home_goals, away_goals)
-                    VALUES ({}) RETURNING match_id;'''.format(template)
+                    VALUES ({}) ON CONFLICT (home_id, away_id, game_date) DO NOTHING 
+                    RETURNING match_id;'''.format(template)
 
         cursor.execute(match_insert_statement, (home_id, away_id, game_date, status, link, *home_lineup, *away_lineup, home_goals, away_goals))
         self._conn.commit()
 
-        match_id = cursor.fetchone()[0]
-        club_match_insert_statement = '''
-                            INSERT INTO club_match (club_id, match_id)
-                            VALUES (%s, %s), (%s, %s)
-                '''
-        cursor.execute(club_match_insert_statement, (home_id, match_id, away_id, match_id))
-        self._conn.commit()
+        match_id = cursor.fetchone()
+
+        if match_id:
+            club_match_insert_statement = '''
+                                INSERT INTO club_match (club_id, match_id)
+                                VALUES (%s, %s), (%s, %s)
+                                ON CONFLICT DO NOTHING 
+                    '''
+            cursor.execute(club_match_insert_statement, (home_id, match_id[0], away_id, match_id[0]))
+            self._conn.commit()

@@ -17,6 +17,7 @@ async def post(session, league, link, season):
 
 
 async def runner(urls):
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
         gathered_responses = await asyncio.gather(*[post(session, league, link, season) for league, season, link in urls])
+    print(gathered_responses)
     return gathered_responses

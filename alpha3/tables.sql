@@ -76,7 +76,8 @@ CREATE TABLE IF NOT EXISTS match (
         market_away_max REAL,
         max_over_2_5 REAL,
         max_under_2_5 REAL,
-		PRIMARY KEY (match_id)
+		PRIMARY KEY (match_id),
+		UNIQUE (home_id, away_id, game_date)
 );
 
 CREATE TABLE IF NOT EXISTS club_match (

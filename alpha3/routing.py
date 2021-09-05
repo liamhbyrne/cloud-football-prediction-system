@@ -62,7 +62,7 @@ def matchTableBuilder():
     start = time.time()
 
     address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
-    '''
+
     scraper = SWLinkGenerator(address)
 
     request_json = request.get_json()
@@ -83,13 +83,14 @@ def matchTableBuilder():
     match_info = asyncio.run(runner(links))
 
     print(match_info)
-    '''
-    match_info = json.load(open("response.json"))
+
+    #match_info = json.load(open("response.json"))
+
     for league_season in match_info:
-        parsed_json = match_info
+        parsed_json = json.loads(league_season)
         league = parsed_json["league"]
         season = parsed_json["season"]
-        match_info_list  = parsed_json["match_data"]
+        match_info_list = parsed_json["match_data"]
         lineup_scraper = MatchTableBuilder(address, league, season)
         lineup_scraper.runner(match_info_list)
 
