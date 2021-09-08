@@ -126,9 +126,9 @@ class PlayerScraper:
                 # name/position tag
                 if attribute['class'] == ['col-name']:
                     if attribute.find('a', {'class': 'tooltip'}):
-                        current_player['name'] = attribute.find('a', {'class': 'tooltip'}).get_text()[1:]
+                        current_player['name'] = attribute.find('a', {'class': 'tooltip'}).get_text()
                         current_player['position'] = attribute.find('a', {'rel': 'nofollow'}).get_text()
-                        current_player['country'] = attribute.find('a', {'class': 'tooltip'}).div.img.get('title')
+                        current_player['country'] = attribute.find('img').get('title')
                     else:
                         club_name = attribute.div.a.get_text()
                         if club_name in club_ids:
@@ -148,7 +148,14 @@ class PlayerScraper:
                     current_player['age'] = attribute.get_text()
 
                 elif attribute['class'] == ['col', 'col-vl']:
-                    current_player['value'] = attribute.get_text().replace("€", "").replace("M", "").replace("K", "")
+                    value = attribute.get_text().replace("€", "")
+                    if "M" in value:
+                        current_player['value'] = value.replace("M", "")
+                    elif "K" in value:
+                        current_player['value'] = str(int(value.replace("K", "")) / 1000)
+                    else:
+                        current_player['value'] = value
+
 
                 elif attribute['class'] == ['col', 'col-tt']:
                     current_player['total_rating'] = attribute.get_text()

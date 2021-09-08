@@ -5,3 +5,5 @@ connection.py
 out.csv
 chromedriver.exe
 */__pycache__/
+alpha3/fixturelinks.txt
+alpha3/response.json

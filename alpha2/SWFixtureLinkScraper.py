@@ -43,7 +43,7 @@ class SWFixtureLinkScraper:
         self._browser = self.getBrowser()
         table_list = self._browser.find_element_by_id("page_competition_1_block_competition_matches_summary_11_page_dropdown")
         for option in table_list.find_elements_by_tag_name('option'):
-            time.sleep(1)
+            time.sleep(3.5)
             result_table = self.findResultsTable()
             soup = BeautifulSoup(result_table.get_attribute('innerHTML'), 'lxml')
 
