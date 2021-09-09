@@ -9,15 +9,12 @@ def setUpDatabase():
     if address is None:
         return "DB address not provided in environment", 400
 
-    conn = None
     try:
         conn = psycopg2.connect(address)
     except psycopg2.OperationalError:
         return "Failed to connect to DB", 500
 
-    with conn:
+    with conn:  # with keyword closes connection after execution
         with conn.cursor() as cursor:
             cursor.execute(open("tables.sql", "r").read())
             conn.commit()
-    return "tables created", 200
-

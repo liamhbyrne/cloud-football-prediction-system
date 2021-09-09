@@ -16,8 +16,8 @@ class MatchTableBuilder:
         self._season = season
         self._league = league
         self._conn = self.connectToDB(address)
-        self._club_ids = self.fetchClubIds()
-        self._player_ids = self.fetchPlayerIds()
+        self._club_ids = self.fetchClubIds()  # Fetch all clubs and their ids in that league
+        self._player_ids = self.fetchPlayerIds()  # Fetch all players from that league
 
 
     def connectToDB(self, address : str):
@@ -32,7 +32,7 @@ class MatchTableBuilder:
 
     def runner(self, match_info_list):
         '''
-        Makes appropriate function calls
+        Uses ThreadPoolExecutor to use multiprocessing to speed up lineup player matching
         '''
 
         counter = 1
@@ -45,24 +45,25 @@ class MatchTableBuilder:
                 status = future.result()
                 logging.info("{} / {} complete".format(counter, len(match_info_list)))
                 if status != 200:
-                    raise Exception("ERROR: Lineup extraction failed on: {}".format(status))
+                    raise Exception("ERROR: Lineup matching failed with: {}".format(status))
                 counter += 1
 
 
     def extractLineups(self, match_info):
-        if not len(self._club_ids):
-            raise Exception("No Club IDs for {} - {}".format(self._season, self._league))
+        if not len(self._club_ids):  # No club ids
+            raise Exception("No Club IDs for {} - {}, perhaps you need to run the player scraper"
+                            .format(self._season, self._league))
 
         if match_info["home_team"] in self._club_ids:
             home_id = self._club_ids[match_info["home_team"]]
         else:
+            # If the home_id can't be matched use string similarity
             home_id = self.searchSimilar(self._club_ids, match_info["home_team"])
 
         if match_info["away_team"] in self._club_ids:
             away_id = self._club_ids[match_info["away_team"]]
         else:
             away_id = self.searchSimilar(self._club_ids, match_info["away_team"])
-
 
         # HOME
         home_squad_ids = dict(self._player_ids[home_id])
@@ -74,6 +75,7 @@ class MatchTableBuilder:
             elif h_name in home_squad_ids:
                 home_lineup_ids.append(home_squad_ids[h_name])
             else:
+                # If the h_name can't be matched use string similarity
                 home_lineup_ids.append(self.searchSimilar(home_squad_ids, h_name))
 
         # AWAY
@@ -97,6 +99,9 @@ class MatchTableBuilder:
         return 200
 
     def searchSimilar(self, name_ids_dict, name):
+        """
+        Finds the most similar string to name in name_ids_dict
+        """
         closest = ("", 0.0)
         for key in name_ids_dict:
             similarity = SequenceMatcher(None, key, name).ratio()
@@ -116,6 +121,9 @@ class MatchTableBuilder:
         return dict(cursor.fetchall())
 
     def fetchPlayerIds(self):
+        """
+        Select every player in a given league and group by the club in a dictionary
+        """
         cursor = self._conn.cursor()
 
         select_statement = '''SELECT club.club_id, player.name, player.player_id FROM player
@@ -126,6 +134,7 @@ class MatchTableBuilder:
         cursor.execute(select_statement)
 
         query_result_set = cursor.fetchall()
+
         club_player_ids = {}
         for club_id, player_name, player_id in query_result_set:
             if club_id in club_player_ids:

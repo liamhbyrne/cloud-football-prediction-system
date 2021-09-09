@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS club (
 		club_id SERIAL,
 		league_id INTEGER,
 		club_name VARCHAR(50),
+		UNIQUE (league_id, club_name),
 		PRIMARY KEY (club_id),
 		FOREIGN KEY (league_id) REFERENCES league(league_id) ON DELETE CASCADE
 );
