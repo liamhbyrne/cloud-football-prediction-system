@@ -68,9 +68,9 @@ def writeToDB(datasets: List):
         cursor = conn.cursor()
 
         template = ','.join(['%s'] * len(datasets))
-        statement = '''INSERT INTO league (league, season, league_name, results_location)
+        statement = '''INSERT INTO league (league, season, league_name, odds_location)
                         VALUES {} ON CONFLICT (league, season) 
-                        DO UPDATE SET results_location = EXCLUDED.results_location'''.format(template)
+                        DO UPDATE SET odds_location = EXCLUDED.odds_location'''.format(template)
         cursor.execute(statement, datasets)
 
 

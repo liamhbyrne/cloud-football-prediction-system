@@ -9,6 +9,7 @@ from flask import request, Flask
 from .SWLinkGenFlask import SWLinkGenerator
 from .createTablesFlask import setUpDatabase
 from .lineupFlask import MatchTableBuilder
+from .odds import OddsBuilder
 from .playersFlask import PlayerScraper
 from .triggerCloudRun import runner
 
@@ -75,7 +76,6 @@ def playerTableBuilder():
 
     return "players inserted", 200
 
-
 @app.route("/results")
 def matchTableBuilder():
     """
@@ -133,3 +133,44 @@ def matchTableBuilder():
 
 
     return "matches inserted", 200
+
+@app.route("/odds")
+def addOddsToMatchTable():
+    """
+        DESCRIPTION: Scrapes football-data.co.uk and inserts odds data into DB.
+        ORDER: This is run after /results.
+        TECHNICAL:
+        REFRESH: every month on current seasons to account for new fixtures.
+        """
+    logging.info("request received on /odds")
+
+    # TIMER START
+    start = time.time()
+
+    address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
+    if address is None:
+        return "DB address not provided in environment", 400
+
+    # ARGUMENTS
+    request_json = request.get_json()
+    # GET
+    if request.args and 'countries' in request.args:
+        country_links = request.args.get('countries')
+    # POST
+    elif request_json and 'countries' in request_json:
+        country_links = request_json['countries']
+    else:
+        return "No or bad parameters were passed", 400
+
+    builder = OddsBuilder(address)
+
+    datasets = builder.csvFileLocationRunner([x['link'] for x in country_links])
+    builder.writeToDB(datasets)
+
+    leagues = builder.fetchLeagues()
+    builder.parserRunner(leagues)
+
+    # TIMER DONE
+    end = time.time()
+    logging.info(str(end - start) + "seconds")
+    return "odds inserted"
