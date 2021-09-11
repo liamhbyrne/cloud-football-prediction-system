@@ -1,14 +1,12 @@
+import logging
 import random
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import psycopg2
-import os
-import logging
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from bs4 import BeautifulSoup
 
