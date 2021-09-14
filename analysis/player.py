@@ -62,7 +62,14 @@ class Team:
                                                   'DEFENCE': ['RB', 'RWB', 'CB', 'LB', 'LWB'],
                                                   'MIDFIELD': ['CDM', 'LM', 'CM', 'RM', 'CAM'],
                                                   'FORWARD': ['LW', 'CF', 'RW', 'ST']}
+    def getPlayers(self) -> List:
+        return self._players
 
+    def getClubId(self) -> int:
+        return self._club_id
+
+    def getClubName(self) -> str:
+        return self._club_name
 
 class Match:
     """
@@ -79,6 +86,9 @@ class Match:
         self._home_goals : int = home_goals
         self._away_goals : int = away_goals
         self._odds_data  : Dict[str:float] = odds_data
+
+    def aggregateFeatures(self):
+        pass
 
     def getMatchId(self) -> int:
         return self._match_id
