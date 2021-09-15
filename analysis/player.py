@@ -62,6 +62,7 @@ class Team:
                                                   'DEFENCE': ['RB', 'RWB', 'CB', 'LB', 'LWB'],
                                                   'MIDFIELD': ['CDM', 'LM', 'CM', 'RM', 'CAM'],
                                                   'FORWARD': ['LW', 'CF', 'RW', 'ST']}
+
     def getPlayers(self) -> List:
         return self._players
 
@@ -70,6 +71,10 @@ class Team:
 
     def getClubName(self) -> str:
         return self._club_name
+
+    def addPlayer(self, player : Player):
+        self._players.append(player)
+
 
 class Match:
     """
