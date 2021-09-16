@@ -1,4 +1,7 @@
+import logging
 from typing import List, Dict
+
+import numpy as np
 
 
 class Player:
@@ -55,13 +58,15 @@ class Team:
 
     """
     def __init__(self, club_id, club_name):
-        self._players   : List  = []
-        self._club_id   : int   = club_id
-        self._club_name : str   = club_name
-        POSITIONS       : Dict[str: List[str,]] = {'GOALKEEPER': ['GK'],
-                                                  'DEFENCE': ['RB', 'RWB', 'CB', 'LB', 'LWB'],
-                                                  'MIDFIELD': ['CDM', 'LM', 'CM', 'RM', 'CAM'],
-                                                  'FORWARD': ['LW', 'CF', 'RW', 'ST']}
+        self._players     : List  = []
+        self._club_id     : int   = club_id
+        self._club_name   : str   = club_name
+        self._position_ratings : np.array
+        self._recent_form : float
+
+    POSITIONS = {'DEFENCE': ['GK', 'RB', 'RWB', 'CB', 'LB', 'LWB'],
+                'MIDFIELD': ['CDM', 'LM', 'CM', 'RM', 'CAM'],
+                'FORWARD': ['LW', 'CF', 'RW', 'ST']}
 
     def getPlayers(self) -> List:
         return self._players
@@ -74,6 +79,52 @@ class Team:
 
     def addPlayer(self, player : Player):
         self._players.append(player)
+
+    def getRatingMetrics(self):
+        return self._position_ratings
+
+    def getRecentForm(self):
+        return self._recent_form
+
+    def calculatePositionMetrics(self):
+        if not len(self._players):
+            logging.warning("Empty lineup in the Team with name: {}".format(self._club_name))
+            return None
+
+        lineup = np.array([player.getOverallRating() for player in self._players])
+
+        defenders = np.array([player.getOverallRating() for player in self._players
+                                if player.getPosition() in Team.POSITIONS["DEFENCE"]])
+        midfielders = np.array([player.getOverallRating() for player in self._players
+                                if player.getPosition() in Team.POSITIONS["MIDFIELD"]])
+        forwards = np.array([player.getOverallRating() for player in self._players
+                                if player.getPosition() in Team.POSITIONS["FORWARD"]])
+
+        averages = np.array([])
+        for field_position in [lineup, defenders, midfielders, forwards]:
+            if not len(field_position):
+                averages = np.append(averages, 0)
+            else:
+                averages = np.append(averages, np.mean(field_position))
+
+        self._position_ratings = averages.tolist()
+
+    def calculateRecentForm(self, recent_matches):
+        points = 0.0
+        if not len(recent_matches):
+            self._recent_form = points
+            return None
+
+        for match in recent_matches:
+            home_id, away_id, home_goals, away_goals = match
+            if home_goals == away_goals:
+                points += 1.0
+            elif self._club_id == home_id and home_goals > away_goals:
+                points += 3.0
+            elif self._club_id == away_id and home_goals < away_goals:
+                points += 3.0
+
+        self._recent_form = points / len(recent_matches)
 
 
 class Match:
@@ -93,7 +144,21 @@ class Match:
         self._odds_data  : Dict[str:float] = odds_data
 
     def aggregateFeatures(self):
-        pass
+        features = []
+        features += self._home_team.getRatingMetrics()
+        features.append(self._home_team.getRecentForm())
+
+        features += self._away_team.getRatingMetrics()
+        features.append(self._away_team.getRecentForm())
+
+        if self._home_goals == self._away_goals:
+            features.append(0)
+        elif self._home_goals > self._away_goals:
+            features.append(1)
+        elif self._home_goals < self._away_goals:
+            features.append(2)
+
+        return features
 
     def getMatchId(self) -> int:
         return self._match_id
