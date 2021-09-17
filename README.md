@@ -9,3 +9,5 @@ triggered containers on Google Cloud Run. The database will be able to refresh i
 are always well-informed.
 
 [11 Sept 2021] - Database complete; *41k matches, 65k players and 25k historical match odds*.
+
+[17 Sept 2021] - Implemented my [old model](https://github.com/liamhbyrne/Premier-League-Predictions-with-Deep-Learning) which achieves 55% accuracy. 
