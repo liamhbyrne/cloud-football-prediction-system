@@ -61,8 +61,8 @@ class Team:
         self._players     : List  = []
         self._club_id     : int   = club_id
         self._club_name   : str   = club_name
-        self._position_ratings : np.array
-        self._recent_form : float
+        self._position_ratings : List
+        self._recent_form : List
 
     POSITIONS = {'DEFENCE': ['GK', 'RB', 'RWB', 'CB', 'LB', 'LWB'],
                 'MIDFIELD': ['CDM', 'LM', 'CM', 'RM', 'CAM'],
@@ -93,38 +93,38 @@ class Team:
 
         lineup = np.array([player.getOverallRating() for player in self._players])
 
-        defenders = np.array([player.getOverallRating() for player in self._players
-                                if player.getPosition() in Team.POSITIONS["DEFENCE"]])
-        midfielders = np.array([player.getOverallRating() for player in self._players
-                                if player.getPosition() in Team.POSITIONS["MIDFIELD"]])
-        forwards = np.array([player.getOverallRating() for player in self._players
-                                if player.getPosition() in Team.POSITIONS["FORWARD"]])
+        value = np.array([player.getValue() for player in self._players])
 
-        averages = np.array([])
-        for field_position in [lineup, defenders, midfielders, forwards]:
-            if not len(field_position):
-                averages = np.append(averages, 0)
-            else:
-                averages = np.append(averages, np.mean(field_position))
+        totalRating = np.array([player.getTotalRating() for player in self._players])
+        ages = np.array([player.getAge() for player in self._players])
 
-        self._position_ratings = averages.tolist()
+        self._position_ratings = [np.mean(lineup), np.mean(ages)]
 
     def calculateRecentForm(self, recent_matches):
         points = 0.0
+        gd = 0.0
         if not len(recent_matches):
-            self._recent_form = points
+            self._recent_form = [points, gd]
             return None
 
         for match in recent_matches:
             home_id, away_id, home_goals, away_goals = match
             if home_goals == away_goals:
                 points += 1.0
-            elif self._club_id == home_id and home_goals > away_goals:
-                points += 3.0
-            elif self._club_id == away_id and home_goals < away_goals:
-                points += 3.0
+            elif self._club_id == home_id:
+                if  home_goals > away_goals:
+                    points += 3.0
+                    gd += home_goals
+                else:
+                    gd -= home_goals
+            elif self._club_id == away_id:
+                if home_goals < away_goals:
+                    points += 3.0
+                    gd += away_goals
+                else:
+                    gd -= away_goals
 
-        self._recent_form = points / len(recent_matches)
+        self._recent_form = [(points / len(recent_matches))*10, gd]
 
 
 class Match:
@@ -146,10 +146,11 @@ class Match:
     def aggregateFeatures(self):
         features = []
         features += self._home_team.getRatingMetrics()
-        features.append(self._home_team.getRecentForm())
+        features += self._home_team.getRecentForm()
 
         features += self._away_team.getRatingMetrics()
-        features.append(self._away_team.getRecentForm())
+        features += self._away_team.getRecentForm()
+
 
         if self._home_goals == self._away_goals:
             features.append(0)

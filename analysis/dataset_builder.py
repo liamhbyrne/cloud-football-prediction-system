@@ -1,18 +1,16 @@
 import logging
 import os
+import random
 import time
-from concurrent.futures._base import as_completed
-from concurrent.futures.thread import ThreadPoolExecutor
-from typing import List, Tuple, Dict
-import datetime
-import dateutil.relativedelta
+from typing import List
 
-import psycopg2
 import numpy as np
 import pandas as pd
+import psycopg2
 from pandas import DataFrame
 
 from analysis.player import Player, Team, Match
+from models.NeuralNet import NeuralNet
 
 logging.basicConfig(level=logging.INFO)
 
@@ -87,11 +85,6 @@ class DatasetBuilder:
 
     def pdFetchRecentScores(self, club_id, match_date):
         start_date = match_date - pd.DateOffset(months=1)
-        '''
-        start_date_obj = datetime.datetime.strptime(match_date, "%Y-%m-%d") - dateutil.relativedelta.relativedelta(
-            months=1)
-        start_date = datetime.datetime.strftime(start_date_obj, "%Y-%m-%d")
-        '''
         mask = (self._df['game_date'] > start_date) & (self._df['game_date'] < match_date) & (
                 (self._df['home_id'] == club_id) | (self._df['away_id'] == club_id))
         return [tuple(x) for x in self._df.loc[mask][['home_id', 'away_id', 'home_goals', 'away_goals']].to_numpy()]
@@ -183,20 +176,21 @@ class DatasetBuilder:
         return match_objects
 
     def buildDataset_v0(self, match_objects : List[Match], training_split : float):
-        assert training_split < 1 and training_split > 0
+        assert 1 > training_split > 0
         features = [x.aggregateFeatures() for x in match_objects]
+        random.shuffle(features)
         training_size = round(len(match_objects) * training_split)
         training_set = features[:training_size]
         testing_set = features[training_size:]
 
-        x_train = [x[:-1] for x in training_set]
-        y_train = [y[-1] for y in training_set]
+        x_train = np.array([x[:-1] for x in training_set])
+        y_train = np.array([y[-1] for y in training_set])
 
-        x_test = [x[:-1] for x in testing_set]
-        y_test = [y[-1] for y in testing_set]
+        x_test = np.array([x[:-1] for x in testing_set])
+        y_test = np.array([y[-1] for y in testing_set])
 
+        logging.info("Training set has {} matches, this will be tested on {} matches".format(len(training_set), len(testing_set)))
         return x_train, y_train, x_test, y_test
-
 
 def main(request):
     # TIMER START
@@ -204,9 +198,13 @@ def main(request):
     address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
 
     builder = DatasetBuilder(address)
-    builder.fetchMatches(status='FT', players_and_lineups_available=True, start_date='2020-09-01')
+    builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code='E0')
     objs = builder.factory()
-    builder.buildDataset_v0(objs, 0.7)
+    x_train, y_train, x_test, y_test = builder.buildDataset_v0(objs, 0.7)
+    nn = NeuralNet()
+    nn.compileModel()
+    nn.fitModel(x_train, y_train, 30)
+    print(nn.evaluateAccuracy(x_test, y_test))
 
     # TIMER DONE
     end = time.time()
