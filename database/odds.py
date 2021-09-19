@@ -248,12 +248,14 @@ class OddsBuilder:
 
         for unmatched_db_name, id in unmatched_club_ids.items():
             closest_name = self.findMostSimilarClubName(unmatched_db_name, remaining_clubs_in_csv)
+
             matched_club_ids[closest_name] = id
             remaining_clubs_in_csv.remove(closest_name)
 
             DEBUG_NAME_CONV[unmatched_db_name] = closest_name
 
         logging.debug(DEBUG_NAME_CONV)
+        print(DEBUG_NAME_CONV)
 
         # Map the team names to their club IDs
         filteredData = filteredData.replace({'HomeTeam': matched_club_ids, 'AwayTeam': matched_club_ids})
@@ -262,8 +264,6 @@ class OddsBuilder:
         filteredData = filteredData.replace({np.nan: None, '': None})
 
         filteredData = filteredData[filteredData.HomeTeam != None]
-
-        filteredData.to_csv("sample.csv")
 
         # Convert to list of tuples compatible with psycopg2
         tuple_rows = filteredData.to_records(index=False).tolist()
@@ -319,7 +319,7 @@ class OddsBuilder:
                 broker_draw_max, broker_away_max, market_home_max, market_draw_max,
                 market_away_max, max_over_2_5, max_under_2_5, home_id, away_id, game_date)
                 WHERE match.home_id = payload.home_id AND match.away_id = payload.away_id
-                AND match.game_date = date(payload.game_date);'''.format(template)
+                ;'''.format(template)
 
         cursor.execute(insert_statement, matches)
         self._conn.commit()
