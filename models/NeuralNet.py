@@ -45,3 +45,20 @@ class NeuralNet:
         prediction = np.argmax(probability,axis=1)
 
         return probability[0], prediction
+
+    def saveModel(self, file_name :  str) -> None:
+        """
+        """
+        try:
+            self._model.save(file_name)
+        except OSError as e:
+            print("failed creating h5 file:", e)
+
+    def loadModel(self, model_path_dir : str) -> None:
+        """
+        """
+        try:
+            self._model = keras.models.load_model(model_path_dir,
+                                                  custom_objects={'leaky_relu' : tf.nn.leaky_relu})  #Custom object used to use correct activation function
+        except OSError as e:
+            print("failed opening h5 file, maybe doesn't exist", e)

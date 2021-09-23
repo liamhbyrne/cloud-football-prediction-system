@@ -27,13 +27,24 @@ class Predict:
         self._home_max_odds = home_max_odds
         self._draw_max_odds = draw_max_odds
         self._away_max_odds = away_max_odds
+        self._model = None
 
-    #   #   REQUESTS    #   #
+    def connectToDB(self, address):
+        """
+        Obtain and return a connection object
+        """
+        try:
+            return psycopg2.connect(address)
+        except psycopg2.OperationalError:
+            logging.error("Failed to connect to DB, likely poor internet connection or bad DB address")
+            exit(1)
+
     def requestPage(self, url: str):
         '''
         HTTP GET each fixture page with an alternating user agent.
         '''
-        user_agent_list = ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
+        user_agent_list = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
             "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2919.83 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2866.71 Safari/537.36",
             "Mozilla/5.0 (X11; Ubuntu; Linux i686 on x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2820.59 Safari/537.36",
@@ -103,7 +114,7 @@ class Predict:
             home_lineup_box = lineups_containers.find('div', {'class': 'container left'}).table.tbody
             away_lineup_box = lineups_containers.find('div', {'class': 'container right'}).table.tbody
 
-            #If a full lineup is not provided, ignore the match
+            # If a full lineup is not provided, ignore the match
             if len(home_lineup_box.find_all('tr')) < 12 or len(away_lineup_box.find_all('tr')) < 12:
                 return None
 
@@ -217,17 +228,6 @@ class Predict:
 
         return club_player_ids
 
-    #   #   DATABASE    #   #
-    def connectToDB(self, address):
-        """
-        Obtain and return a connection object
-        """
-        try:
-            return psycopg2.connect(address)
-        except psycopg2.OperationalError:
-            logging.error("Failed to connect to DB, likely poor internet connection or bad DB address")
-            exit(1)
-
     def fetchRecentScores(self, club_id, match_date):
         cursor = self._conn.cursor()
         cursor.execute('''SELECT home_id, away_id, home_goals, away_goals
@@ -248,7 +248,6 @@ class Predict:
         results = cursor.fetchone()
         return Player(*results)
 
-
     def factory(self, match_info_with_ids):
         home_obj = Team(match_info_with_ids["home_id"], match_info_with_ids["home_team"])
         away_obj = Team(match_info_with_ids["away_id"], match_info_with_ids["away_team"])
@@ -256,49 +255,68 @@ class Predict:
             home_obj.addPlayer(self.fetchPlayer(home_p_id))
             away_obj.addPlayer(self.fetchPlayer(away_p_id))
 
-        home_obj.calculateRecentForm(self.fetchRecentScores(match_info_with_ids["home_id"], match_info_with_ids["game_date"]))
+        home_obj.calculateRecentForm(
+            self.fetchRecentScores(match_info_with_ids["home_id"], match_info_with_ids["game_date"]))
         home_obj.calculatePositionMetrics()
 
-        away_obj.calculateRecentForm(self.fetchRecentScores(match_info_with_ids["away_id"], match_info_with_ids["game_date"]))
+        away_obj.calculateRecentForm(
+            self.fetchRecentScores(match_info_with_ids["away_id"], match_info_with_ids["game_date"]))
         away_obj.calculatePositionMetrics()
 
         match_obj = Match(game_date=match_info_with_ids["game_date"], home_team=home_obj, away_team=away_obj)
         return np.array(match_obj.aggregateFeatures())
 
-    def trainAndPredict(self, features):
-        model = ModelRunner(self._address).train_v0_for_predictions()
-        probabilities, outcome = model.predictOutcome(features[:-1])
-        return probabilities, outcome[0]
+    def trainForPredictions(self, save: bool):
+        if save:
+            save_location = r"C:\Users\Liam\PycharmProjects\football2\model_files\{}-{}.h5".format(
+                self._league, datetime.now().strftime("%Y-%m-%d"))
+        else:
+            save_location = None
 
-    def loadAndPredict(self, location, features):
-        pass
+        model = ModelRunner(self._address).train_v0_for_predictions(
+            save_to=save_location)
+
+        self._model = model
+
+    def loadForPredictions(self, location):
+        self._model = ModelRunner().load_v0_NeuralNet(location)
+
+    def predict(self, features):
+        assert self._model
+        probabilities, outcome = self._model.predictOutcome(features[:-1])
+        return probabilities, outcome[0]
 
     def bet(self, probabilities, outcome):
         probability = probabilities[outcome]
         odds = [self._draw_max_odds, self._home_max_odds, self._away_max_odds][outcome]
         return (((odds - 1) * probability) - (1 - probability)) / (odds - 1)
 
-def main(request):
-    # TIMER START
-    start = time.time()
+
+def predictOne():
     address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
 
-    p = Predict(address, "https://uk.soccerway.com/matches/2021/05/23/england/premier-league/liverpool-fc/crystal-palace-fc/3344507/",
+    p = Predict(address,
+                "https://uk.soccerway.com/matches/2021/05/23/england/premier-league/liverpool-fc/crystal-palace-fc/3344507/",
                 "E0", "2021", home_max_odds=1.16, draw_max_odds=8.5, away_max_odds=15.0)
 
     match_info = p.extractMatchInfo()
-    print(match_info)
     match_info_with_ids = p.extractLineups(match_info)
     features = p.factory(match_info_with_ids)
-    probabilities, outcome = p.trainAndPredict(features)
+    p.trainForPredictions(save=False)
+    probabilities, outcome = p.predict(features)
     print(p.bet(probabilities, outcome))
 
 
-    # TIMER DONE
-    end = time.time()
-    logging.info(str(end - start) + " seconds")
-    return str(end - start)
+def predictMany():
+    address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
+
 
 
 # Call to main, GCP does this implicitly
-main("")
+if __name__ == '__main__':
+    # TIMER START
+    start = time.time()
+    predictOne()
+    # TIMER DONE
+    end = time.time()
+    logging.info(str(end - start) + " seconds")

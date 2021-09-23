@@ -12,12 +12,20 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ModelRunner:
-    def __init__(self, address: str):
+    def __init__(self, address: str = None):
         self._address = address
         self._builder = self.setBuilder()
 
     def setBuilder(self):
+        if not self._address:
+            logging.info("Model runner proceeding without database access . . .")
+            return None
         return DatasetBuilder(self._address)
+
+    def load_v0_NeuralNet(self, model_path):
+        nn = NeuralNet()
+        nn.loadModel(model_path)
+        return nn
 
     def train_v0_NeuralNet(self):
         self._builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code='E0')
@@ -28,14 +36,17 @@ class ModelRunner:
         nn.fitModel(x_train, y_train, 50)
 
         print("MODEL ACCURACY {}%".format(round(nn.evaluateAccuracy(x_test, y_test) * 100, 5)))
+        return nn
 
-    def train_v0_for_predictions(self):
+    def train_v0_for_predictions(self, save_to=None):
         self._builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code='E0')
         objs = self._builder.factory()
         x_train, y_train, x_test, y_test = self._builder.buildDataset_v0(objs, 1)
         nn = NeuralNet()
         nn.compileModel()
         nn.fitModel(x_train, y_train, 50)
+        if save_to:
+            nn.saveModel(save_to)
         return nn
 
     def payout_v0_NeuralNet(self):
