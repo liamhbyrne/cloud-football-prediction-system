@@ -1,7 +1,5 @@
 import logging
-import os
 import random
-import time
 from typing import List
 
 import numpy as np
@@ -10,7 +8,6 @@ import psycopg2
 from pandas import DataFrame
 
 from analysis.player import Player, Team, Match
-from models.NeuralNet import NeuralNet
 
 logging.basicConfig(level=logging.INFO)
 
@@ -176,7 +173,6 @@ class DatasetBuilder:
         return match_objects
 
     def buildDataset_v0(self, match_objects : List[Match], training_split : float):
-        assert 1 > training_split > 0
         features = [x.aggregateFeatures() for x in match_objects]
         random.shuffle(features)
         training_size = round(len(match_objects) * training_split)
@@ -192,25 +188,9 @@ class DatasetBuilder:
         logging.info("Training set has {} matches, this will be tested on {} matches".format(len(training_set), len(testing_set)))
         return x_train, y_train, x_test, y_test
 
-def main(request):
-    # TIMER START
-    start = time.time()
-    address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
-
-    builder = DatasetBuilder(address)
-    builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code='E0')
-    objs = builder.factory()
-    x_train, y_train, x_test, y_test = builder.buildDataset_v0(objs, 0.7)
-    nn = NeuralNet()
-    nn.compileModel()
-    nn.fitModel(x_train, y_train, 30)
-    print(nn.evaluateAccuracy(x_test, y_test))
-
-    # TIMER DONE
-    end = time.time()
-    logging.info(str(end - start) + "seconds")
-    return str(end - start)
-
-
-# Call to main, GCP does this implicitly
-main("")
+    def buildSeasonTest(self, match_objects : List[Match]):
+        features = [x.aggregateOddsFeatures() for x in match_objects]
+        test_features = np.array([x[:-2] for x in features])
+        test_labels = np.array([y[-2] for y in features])
+        odds_data = np.array([y[-1] for y in features])
+        return test_features, test_labels, odds_data
