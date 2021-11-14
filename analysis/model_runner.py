@@ -111,9 +111,10 @@ class ModelRunner:
 
                 if kelly_proportion > 0.0:
                     stake = kelly_proportion * balance
+                    #stake = 10
                     balance -= stake
                     if correct:
-                        balance += stake + (stake * odds[odds_column])
+                        balance += (stake * odds[odds_column])
                     print(correct, "ODDS", odds[odds_column], "BALANCE", balance, "STAKE", stake, "KELLY",
                           kelly_proportion)
 
@@ -149,7 +150,7 @@ class ModelRunner:
         plt.show()
 
     def calculateKellyCriterion(self, odds, probability) -> float:
-        return (((odds - 1) * probability) - (1 - probability)) / (odds - 1)
+        return 0.5*(((odds - 1) * probability) - (1 - probability)) / (odds - 1)
 
 
 

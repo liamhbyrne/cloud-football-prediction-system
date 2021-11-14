@@ -37,7 +37,7 @@ class SWLinkGenerator:
         season_links = []
 
         # List comprehension of the season numbering format, "2011-2012" is an anomaly
-        years = ["2011-2012"] + ["{}{}".format(i, i+1) for i in range(2012, 2021)] # Change (2012, X) for season control
+        years = ["2011-2012"] + ["{}{}".format(i, i+1) for i in range(2012, 2022)] # Change (2012, X) for season control
 
         for league_code, link in urls.items():
             season_search = re.search("\d\d\d\d-?\d\d\d\d", link).group(0)

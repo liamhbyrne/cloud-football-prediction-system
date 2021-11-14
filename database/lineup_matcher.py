@@ -39,6 +39,7 @@ class MatchTableBuilder:
         counter = 1
 
         with ThreadPoolExecutor(max_workers=5) as executer:
+
             futures = [executer.submit(self.extractLineups, link) for link in match_info_list if link != None]
 
             # Ensures the program does not continue until all have completed
@@ -52,8 +53,9 @@ class MatchTableBuilder:
 
     def extractLineups(self, match_info):
         if not len(self._club_ids):  # No club ids
-            raise Exception("No Club IDs for {} - {}, perhaps you need to run the player scraper"
+            logging.error("No Club IDs for {} - {}, perhaps you need to run the player scraper"
                             .format(self._season, self._league))
+            return 200
 
         if match_info["home_team"] in self._club_ids:
             home_id = self._club_ids[match_info["home_team"]]

@@ -12,6 +12,7 @@ from .lineup_matcher import MatchTableBuilder
 from .odds import OddsBuilder
 from .players import PlayerScraper
 from .trigger_cloud_run import runner
+from .match_refresher import MatchRefresher
 
 # Enables Info logging to be displayed on console
 logging.basicConfig(level=logging.INFO)
@@ -133,6 +134,32 @@ def matchTableBuilder():
 
 
     return "matches inserted", 200
+
+@app.route("/refresh")
+def refresh():
+    """
+    DESCRIPTION:
+    ORDER:
+    TECHNICAL:
+    REFRESH:
+    """
+    logging.info("request received on /refresh")
+
+    # TIMER START
+    start = time.time()
+
+    address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
+    if address is None:
+        return "DB address not provided in environment", 400
+
+    refresher = MatchRefresher(address)
+    refresher.fetchUpcomingMatches()
+
+    # TIMER DONE
+    end = time.time()
+    logging.info(str(end - start) + "seconds")
+    return "refreshed"
+
 
 @app.route("/odds")
 def addOddsToMatchTable():

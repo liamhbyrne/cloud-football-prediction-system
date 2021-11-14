@@ -238,10 +238,12 @@ class SWFixtureLinkScraper:
             .find('a', {'class': 'team-title'}).get_text()
 
         # Check if game has not happened yet
-        KO_box = match_details.find("div", {'class': 'container middle'}).span
-        if KO_box:
-            if match_details.find("div", {'class': 'container middle'}).span.get_text() == "KO":
-                match_info["status"] = "UPCOMING"
+        container = match_details.find("div", {'class': 'container middle'})
+
+        if container:
+            if container.find("span"):
+                if match_details.find("div", {'class': 'container middle'}).span.get_text() == "KO":
+                    match_info["status"] = "UPCOMING"
 
         # GAME STATUS
         if match_details.find("h3", {'class': 'thick scoretime'}):
@@ -314,6 +316,7 @@ class SWFixtureLinkScraper:
                 match_data.append(result)
 
         return {"league": self._league, "season": self._season, "match_data": match_data}
+
 
 
 @app.route("/", methods=["POST", "GET"])

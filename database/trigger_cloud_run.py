@@ -11,7 +11,7 @@ async def post(session, league, link, season):
     """
     This function is called by the runner() to send a HTTP POST
     """
-    async with session.post("https://soccerway-fetcher-jrn5p5gjaa-uc.a.run.app/",
+    async with session.post("https://soccerwayfetcher-wg7cnut44a-uc.a.run.app",
                   headers={'Content-Type': 'application/json'},
                   data=json.dumps({"league": league,
                                    "link": link,

@@ -286,25 +286,25 @@ class Predict:
         probabilities, outcome = self._model.predictOutcome(features[:-1])
         return probabilities, outcome[0]
 
-    def bet(self, probabilities, outcome):
+    def bet(self, probabilities, outcome, kelly):
         probability = probabilities[outcome]
         odds = [self._draw_max_odds, self._home_max_odds, self._away_max_odds][outcome]
-        return (((odds - 1) * probability) - (1 - probability)) / (odds - 1)
+        return kelly * (((odds - 1) * probability) - (1 - probability)) / (odds - 1)
 
 
 def predictOne():
     address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
 
     p = Predict(address,
-                "https://uk.soccerway.com/matches/2021/05/23/england/premier-league/liverpool-fc/crystal-palace-fc/3344507/",
-                "E0", "2021", home_max_odds=1.16, draw_max_odds=8.5, away_max_odds=15.0)
+                "https://uk.soccerway.com/matches/2021/11/05/england/premier-league/southampton-fc/aston-villa-football-club/3517159/",
+                "E0", "2122", home_max_odds=2.04, draw_max_odds=3.71, away_max_odds=3.79)
 
     match_info = p.extractMatchInfo()
     match_info_with_ids = p.extractLineups(match_info)
     features = p.factory(match_info_with_ids)
     p.trainForPredictions(save=False)
     probabilities, outcome = p.predict(features)
-    print(p.bet(probabilities, outcome))
+    print(outcome, p.bet(probabilities, outcome, 0.5))
 
 
 def predictMany():
