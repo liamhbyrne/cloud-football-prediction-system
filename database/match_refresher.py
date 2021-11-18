@@ -61,7 +61,7 @@ class MatchRefresher:
 
         template = ','.join(['%s'] * 25)
         update_statement = '''UPDATE match 
-                SET home_goals = payload.home_goals, away_goals = payload.away_goals,
+                SET status = 'FT', home_goals = payload.home_goals, away_goals = payload.away_goals,
                 h1_player_id = payload.h1_player_id, h2_player_id = payload.h2_player_id,
                 h3_player_id = payload.h3_player_id, h4_player_id = payload.h4_player_id,
                 h5_player_id = payload.h5_player_id, h6_player_id = payload.h6_player_id,
