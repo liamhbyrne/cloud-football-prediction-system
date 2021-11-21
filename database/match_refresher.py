@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import re
 from difflib import SequenceMatcher
@@ -48,7 +49,7 @@ class MatchRefresher:
         cursor.execute(select_statement)
         for match_id, home_id, away_id, link, league, season in cursor.fetchall():
             if (home_id not in self._player_ids) or (away_id not in self._player_ids):
-                self.fetchPlayerIds(league, season)
+                self.fetchPlayerIds(season, league)
 
             home_goals, away_goals, home_lineup, away_lineup = self.extractMatchInfo(link)
             if all(x is not None for x in [home_goals, away_goals, home_lineup, away_lineup]):
@@ -61,7 +62,7 @@ class MatchRefresher:
 
         template = ','.join(['%s'] * 25)
         update_statement = '''UPDATE match 
-                SET status = 'FT', home_goals = payload.home_goals, away_goals = payload.away_goals,
+                SET status = 'FT', home_goals = payload.home_goals::real, away_goals = payload.away_goals::real,
                 h1_player_id = payload.h1_player_id, h2_player_id = payload.h2_player_id,
                 h3_player_id = payload.h3_player_id, h4_player_id = payload.h4_player_id,
                 h5_player_id = payload.h5_player_id, h6_player_id = payload.h6_player_id,
@@ -74,13 +75,14 @@ class MatchRefresher:
                 a7_player_id = payload.a7_player_id, a8_player_id = payload.a8_player_id,
                 a9_player_id = payload.a9_player_id, a10_player_id = payload.a10_player_id,
                 a11_player_id = payload.a11_player_id
-                FROM (VALUES {}) AS payload (match_id, home_goals, away_goals,
+                FROM (VALUES ({})) AS payload (match_id, home_goals, away_goals,
                 h1_player_id, h2_player_id, h3_player_id, h4_player_id, h5_player_id, h6_player_id, h7_player_id, 
                 h8_player_id, h9_player_id, h10_player_id, h11_player_id, 
                 a1_player_id, a2_player_id, a3_player_id, a4_player_id, a5_player_id, a6_player_id, a7_player_id, 
                 a8_player_id, a9_player_id, a10_player_id, a11_player_id)
                 WHERE match.match_id = payload.match_id'''.format(template)
         cursor.execute(update_statement, values)
+        self._conn.commit()
 
     def requestPage(self, url: str):
         '''
@@ -188,6 +190,7 @@ class MatchRefresher:
 
     def matchPlayerIds(self, home_id, away_id, home_lineup, away_lineup):
         # HOME
+
         home_squad_ids = dict(self._player_ids[home_id])
         home_lineup_ids = []
 
@@ -234,3 +237,10 @@ class MatchRefresher:
                 self._player_ids[club_id].append((player_name, player_id))
             else:
                 self._player_ids[club_id] = [(player_name, player_id)]
+
+
+if __name__ == '__main__':
+    address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
+
+    refresher = MatchRefresher(address)
+    refresher.fetchUpcomingMatches()
