@@ -11,3 +11,5 @@ are always well-informed.
 [11 Sept 2021] - Database complete; *41k matches, 65k players and 25k historical match odds*.
 
 [17 Sept 2021] - Implemented my [old model](https://github.com/liamhbyrne/Premier-League-Predictions-with-Deep-Learning) which achieves 55% accuracy. 
+
+[30 Nov 2021] - Database can refresh itself with new matches. New payout (with Kelly Criterion) visualisation features.

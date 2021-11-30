@@ -96,7 +96,7 @@ class ModelRunner:
             # Make prediction
             probabilities, predicted_outcome = nn.predictOutcome(feature_vector)
 
-            #predicted_outcome[0] = random.choice([0,1,2])
+            predicted_outcome[0] = random.choice([0,1,2])
 
             # Check if its correct
             correct = False
