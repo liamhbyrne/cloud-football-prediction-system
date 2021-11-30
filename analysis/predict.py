@@ -296,13 +296,14 @@ def predictOne():
     address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
 
     p = Predict(address,
-                "https://uk.soccerway.com/matches/2021/11/05/england/premier-league/southampton-fc/aston-villa-football-club/3517159/",
-                "E0", "2122", home_max_odds=2.04, draw_max_odds=3.71, away_max_odds=3.79)
+                "https://uk.soccerway.com/matches/2021/11/27/england/championship/preston-north-end-fc/fulham-football-club/3523326/",
+                "E1", "2122", home_max_odds=4, draw_max_odds=3.4, away_max_odds=1.91)
 
     match_info = p.extractMatchInfo()
     match_info_with_ids = p.extractLineups(match_info)
     features = p.factory(match_info_with_ids)
-    p.trainForPredictions(save=False)
+    #p.trainForPredictions(save=True)
+    p.loadForPredictions(r"C:\Users\Liam\PycharmProjects\football2\model_files\E1-2021-11-24.h5")
     probabilities, outcome = p.predict(features)
     print(outcome, p.bet(probabilities, outcome, 0.5))
 

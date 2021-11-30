@@ -1,6 +1,8 @@
 import logging
 import os
+import random
 import time
+from datetime import datetime
 
 from analysis.dataset_builder import DatasetBuilder
 from models.NeuralNet import NeuralNet
@@ -49,23 +51,31 @@ class ModelRunner:
             nn.saveModel(save_to)
         return nn
 
-    def payout_v0_NeuralNet(self):
+    def payout_v0_NeuralNet(self, league, load_path=None):
         # TRAIN MODEL BEFORE 20/21
-        self._builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code='E0',
-                                   end_date='2020-07-27')
-        objs = self._builder.factory()
+        if load_path:
+            nn = NeuralNet()
+            nn.loadModel(r"C:\Users\Liam\PycharmProjects\football2\model_files\E1-2021-11-29.h5")
+        else:
+            self._builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code="E1",
+                                       )#end_date='2021-07-27')
+            objs = self._builder.factory()
 
-        x_train, y_train, x_test, y_test = self._builder.buildDataset_v0(objs, 0.9)
-        nn = NeuralNet()
-        nn.compileModel()
-        nn.fitModel(x_train, y_train, epochs=50)
+            x_train, y_train, x_test, y_test = self._builder.buildDataset_v0(objs, 0.9)
 
-        logging.info("MODEL ACCURACY {}%".format(round(nn.evaluateAccuracy(x_test, y_test) * 100, 5)))
+            nn = NeuralNet()
+            nn.compileModel()
+            nn.fitModel(x_train, y_train, epochs=50)
+            #nn.saveModel(r"C:/Users/Liam/PycharmProjects/football2/model_files/{}-{}.h5".format(
+            #       league, datetime.now().strftime("%Y-%m-%d")))
+
+            logging.info("MODEL ACCURACY {}%".format(round(nn.evaluateAccuracy(x_test, y_test) * 100, 5)))
+
 
         # GET 20/21 MATCH/ODDS DATA
         self._builder = self.setBuilder()
-        self._builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code='E0',
-                                   season='2021')
+        self._builder.fetchMatches(status='FT', players_and_lineups_available=True, league_code=league,
+                                   )#season='2122')
 
         objs = self._builder.factory()
 
@@ -73,7 +83,7 @@ class ModelRunner:
 
         games_predicted_correctly = 0
         balance = 1000
-        KELLY = 0.5
+        KELLY = 0.2
 
         correct_odds_series = []
         correct_prob_series = []
@@ -86,13 +96,15 @@ class ModelRunner:
             # Make prediction
             probabilities, predicted_outcome = nn.predictOutcome(feature_vector)
 
+            #predicted_outcome[0] = random.choice([0,1,2])
+
             # Check if its correct
             correct = False
             if predicted_outcome[0] == label:
                 games_predicted_correctly += 1
                 correct = True
 
-            if balance > 0.009:
+            if balance >= 0.01:
                 # Bet
                 odds_column = ['draw_max', 'home_max', 'away_max'][predicted_outcome[0]]
                 if odds_column not in odds:
@@ -110,7 +122,7 @@ class ModelRunner:
                                                                         probabilities[predicted_outcome[0]])
 
                 if kelly_proportion > 0.0:
-                    stake = kelly_proportion * balance
+                    stake = round(kelly_proportion * balance, 1)
                     #stake = 10
                     balance -= stake
                     if correct:
@@ -135,14 +147,14 @@ class ModelRunner:
         ax1.scatter(wrong_odds_series, wrong_prob_series, c='red')
         plt.plot(np.unique(overall_odds_series),
                  np.poly1d(np.polyfit(overall_odds_series, overall_prob_series, 1))(np.unique(overall_odds_series)))
-        ax1.set_title("Odds to Probability distribution")
+        ax1.set_title("Odds to Probability distribution for {}".format(league))
         ax1.set_xlabel("odds")
         ax1.set_ylabel("probability")
 
         # BALANCE GRAPH
         fig2, ax2 = plt.subplots()
         ax2.plot(balance_series[:])
-        ax2.set_title("Balance by game")
+        ax2.set_title("Balance by game {}".format(league))
         ax2.set_xlabel("game")
         ax2.set_ylabel("balance")
 
@@ -150,7 +162,7 @@ class ModelRunner:
         plt.show()
 
     def calculateKellyCriterion(self, odds, probability) -> float:
-        return 0.5*(((odds - 1) * probability) - (1 - probability)) / (odds - 1)
+        return (((odds - 1) * probability) - (1 - probability)) / (odds - 1)
 
 
 
@@ -159,7 +171,7 @@ def main(request):
     start = time.time()
     address: str = os.environ.get('DB_ADDRESS')  # Address stored in environment
     model_runner = ModelRunner(address)
-    model_runner.payout_v0_NeuralNet()
+    model_runner.payout_v0_NeuralNet("E0")
 
     # TIMER DONE
     end = time.time()
